@@ -1,4 +1,5 @@
-const puppeteer = require("puppeteer");
+const puppeteer = require('puppeteer-core');
+const chromium = require('@sparticuz/chromium');
 const fs = require('fs').promises;
 const TelegramBot = require('node-telegram-bot-api');
 require('dotenv').config();
@@ -30,17 +31,24 @@ async function getLastPost() {
 
 async function checkForNewPosts() {
 
-    const browser = await puppeteer.launch({ headless: false });
-    const page = await browser.newPage();
-    await page.setUserAgent(
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
-    );
-
-    await page.setViewport({
-        width: 1920,
-        height: 1080,
-        deviceScaleFactor: 1,
+    // const browser = await puppeteer.launch({ headless: false });
+    const browser = await puppeteer.launch({
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath: await chromium.executablePath(),
+        headless: chromium.headless,
+        ignoreHTTPSErrors: true,
     });
+    const page = await browser.newPage();
+    // await page.setUserAgent(
+    //     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
+    // );
+
+    // await page.setViewport({
+    //     width: 1920,
+    //     height: 1080,
+    //     deviceScaleFactor: 1,
+    // });
 
     function delay(time) {
         return new Promise(function (resolve) {
