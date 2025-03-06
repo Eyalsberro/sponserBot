@@ -30,7 +30,7 @@ async function getLastPost() {
 
 
 async function checkForNewPosts() {
-
+    console.log('Launching browser...');
     // const browser = await puppeteer.launch({ headless: false });
     const browser = await puppeteer.launch({
         args: chromium.args,
@@ -39,6 +39,7 @@ async function checkForNewPosts() {
         headless: true,
         ignoreHTTPSErrors: true,
     });
+
     const page = await browser.newPage();
     // await page.setUserAgent(
     //     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
@@ -50,12 +51,7 @@ async function checkForNewPosts() {
     //     deviceScaleFactor: 1,
     // });
 
-    function delay(time) {
-        return new Promise(function (resolve) {
-            setTimeout(resolve, time);
-        });
-    }
-
+    
 
     console.log('Forum monitor is running...');
     const urls = ['https://www.sponser.co.il/ForumViewUserMessages.aspx?UserId=5609&ForumId=2&IsFull=0']
@@ -64,7 +60,7 @@ async function checkForNewPosts() {
 
     for (let i = 0; i < urls.length; i++) {
         const url = urls[i];
-        await page.goto(`${url}`, { waitUntil: 'load', timeout: 60000 });
+        await page.goto(`${url}`, { waitUntil: 'networkidle0', timeout: 60000 });
 
 
         const courses = await page.$$eval('#forumThread', (elements) =>
