@@ -64,7 +64,7 @@ async function checkForNewPosts() {
 
     for (let i = 0; i < urls.length; i++) {
         const url = urls[i];
-        await page.goto(`${url}`);
+        await page.goto(`${url}`, { waitUntil: 'load', timeout: 60000 });
 
 
         const courses = await page.$$eval('#forumThread', (elements) =>
