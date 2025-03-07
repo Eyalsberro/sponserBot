@@ -32,66 +32,77 @@ async function getLastPost() {
 async function checkForNewPosts() {
     console.log('Launching browser...');
     // const browser = await puppeteer.launch({ headless: false });
-    const browser = await puppeteer.launch({
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
-        executablePath: await chromium.executablePath(),
-        headless: true,
-        ignoreHTTPSErrors: true,
-    });
 
-    const page = await browser.newPage();
-    // await page.setUserAgent(
-    //     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
-    // );
+    try {
+        const browser = await puppeteer.launch({
+            args: chromium.args,
+            defaultViewport: chromium.defaultViewport,
+            executablePath: await chromium.executablePath(),
+            headless: true,
+            ignoreHTTPSErrors: true,
+        });
 
-    // await page.setViewport({
-    //     width: 1920,
-    //     height: 1080,
-    //     deviceScaleFactor: 1,
-    // });
-
-    
-
-    console.log('Forum monitor is running...');
-    const urls = ['https://www.sponser.co.il/ForumViewUserMessages.aspx?UserId=5609&ForumId=2&IsFull=0']
-
-    let myproduct = []
-
-    for (let i = 0; i < urls.length; i++) {
-        const url = urls[i];
-        await page.goto(`${url}`, { waitUntil: 'networkidle0', timeout: 60000 });
+        const page = await browser.newPage();
 
 
-        const courses = await page.$$eval('#forumThread', (elements) =>
-            elements.map((e) => ({
-                latestPostTitle: e.querySelector('li:nth-child(2) > article > article > header > article > a > h2').innerText,
-                latestPostMsg: e.querySelector('li:nth-child(2) > article > article > section > section > article').innerText,
-            }))
-        );
+        console.log('Forum monitor is running...');
+        const urls = ['https://www.sponser.co.il/ForumViewUserMessages.aspx?UserId=5609&ForumId=2&IsFull=0']
 
-        myproduct.push(...courses)
+        let myproduct = []
+
+        for (let i = 0; i < urls.length; i++) {
+            const url = urls[i];
+            try {
+                await page.goto(`${url}`, { waitUntil: 'networkidle0', timeout: 60000 });
+                try {
+                    await page.waitForSelector('#forumThread', { timeout: 30000 });
+                    const courses = await page.$$eval('#forumThread', (elements) =>
+                        elements.map((e) => ({
+                            latestPostTitle: e.querySelector('li:nth-child(2) > article > article > header > article > a > h2').innerText,
+                            latestPostMsg: e.querySelector('li:nth-child(2) > article > article > section > section > article').innerText,
+                        }))
+                    );
+
+                    myproduct.push(...courses)
+
+                } catch (selectorError) {
+                    console.error('Selector not found:', selectorError);
+                    await bot.sendMessage(CHAT_ID, `Selector not found: ${selectorError.message}`);
+                    return;
+                }
+
+            } catch (gotoError) {
+                console.error(`Error navigating to ${url}:`, gotoError);
+                await bot.sendMessage(CHAT_ID, `Error navigating to ${url}: ${gotoError.message}`);
+                return; // Stop processing this URL
+            }
+
+        }
+        
+        const lastStoredPost = await getLastPost();
 
 
+        if (!lastStoredPost || myproduct.latestPostTitle !== lastStoredPost.latestPostTitle) {
+            // New post found
+            const message = `הודעה חדשה מהדר:\nכותרת: ${myproduct[0].latestPostTitle}\nהודעה: ${myproduct[0].latestPostMsg} \n קישור להודעה: ${urls[0]}`;
+            await bot.sendMessage(CHAT_ID, message);
 
+            // Save the new post info
+            await saveLastPost(myproduct);
+        } else {
+            console.log('No new posts.');
+        }
+
+
+        await browser.close()
+
+    } catch (error) {
+        console.error('Failed to launch browser:', error);
+        // Send error to telegram.
+        await bot.sendMessage(CHAT_ID, `Error: ${error.message}`);
+        return; // Exit the function to prevent further errors
     }
 
-    const lastStoredPost = await getLastPost();
-
-
-    if (!lastStoredPost || myproduct.latestPostTitle !== lastStoredPost.latestPostTitle) {
-        // New post found
-        const message = `הודעה חדשה מהדר:\nכותרת: ${myproduct[0].latestPostTitle}\nהודעה: ${myproduct[0].latestPostMsg} \n קישור להודעה: ${urls[0]}`;
-        await bot.sendMessage(CHAT_ID, message);
-
-        // Save the new post info
-        await saveLastPost(myproduct);
-    } else {
-        console.log('No new posts.');
-    }
-
-
-    await browser.close()
 
 }
 async function runPeriodicChecks() {
