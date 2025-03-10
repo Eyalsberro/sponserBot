@@ -12,6 +12,8 @@ const port = process.env.PORT || 8080;
 // Telegram Bot Token and Chat ID
 const CHAT_ID = '-4726759675';
 const bot = new TelegramBot(process.env.BOT_TOKEN);
+const browserlessToken = process.env.BROWSERLESS_TOKEN;
+
 
 const STORAGE_FILE = 'lastPost.json';
 
@@ -29,19 +31,29 @@ async function getLastPost() {
 }
 
 
+async function launchBrowser() {
+    const browser = await puppeteer.connect({
+        browserWSEndpoint: `wss://chrome.browserless.io?token=${browserlessToken}`, // Replace with your Browserless token
+    });
+    
+    return browser;
+}
+
+
 async function checkForNewPosts() {
     console.log('Launching browser...');
     // const browser = await puppeteer.launch({ headless: false });
 
     try {
-        const browser = await puppeteer.launch({
-            args: chromium.args,
-            defaultViewport: chromium.defaultViewport,
-            executablePath: await chromium.executablePath(),
-            headless: true,
-            ignoreHTTPSErrors: true,
-        });
+        // const browser = await puppeteer.launch({
+        //     args: chromium.args,
+        //     defaultViewport: chromium.defaultViewport,
+        //     executablePath: await chromium.executablePath(),
+        //     headless: true,
+        //     ignoreHTTPSErrors: true,
+        // });
 
+        const browser = await launchBrowser(); // Launch browser using Browserless
         const page = await browser.newPage();
 
 
@@ -65,20 +77,21 @@ async function checkForNewPosts() {
 
                     myproduct.push(...courses)
 
+
                 } catch (selectorError) {
                     console.error('Selector not found:', selectorError);
-                    await bot.sendMessage(CHAT_ID, `Selector not found: ${selectorError.message}`);
+                    await bot.sendMessage('5451308423', `Selector not found: ${selectorError.message}`);
                     return;
                 }
 
             } catch (gotoError) {
                 console.error(`Error navigating to ${url}:`, gotoError);
-                await bot.sendMessage(CHAT_ID, `Error navigating to ${url}: ${gotoError.message}`);
+                await bot.sendMessage('5451308423', `Error navigating to ${url}: ${gotoError.message}`);
                 return; // Stop processing this URL
             }
 
         }
-        
+
         const lastStoredPost = await getLastPost();
 
 
@@ -99,21 +112,18 @@ async function checkForNewPosts() {
     } catch (error) {
         console.error('Failed to launch browser:', error);
         // Send error to telegram.
-        await bot.sendMessage(CHAT_ID, `Error: ${error.message}`);
+        await bot.sendMessage('5451308423', `Error: ${error.message}`);
         return; // Exit the function to prevent further errors
     }
 
 
 }
 async function runPeriodicChecks() {
-    while (true) {
-        await checkForNewPosts();
-        // Wait for 5 minutes
-        await new Promise(resolve => setTimeout(resolve, 5 * 60 * 1000));
-    }
+    await checkForNewPosts();
 }
 
 // Start the periodic checks
+setInterval(runPeriodicChecks, 5 * 60 * 1000);
 runPeriodicChecks().catch(console.error);
 
 // Add a route to manually trigger checks
