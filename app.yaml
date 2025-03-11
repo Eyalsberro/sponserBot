@@ -5,4 +5,5 @@ entrypoint: node index.js
 env_variables:
   BOT_TOKEN: '8141877599:AAHm9SiEuCmfKy_-OsZYwdgtE3zsBvptQPs'
   BROWSERLESS_TOKEN: 'RuxY6uJaPXNjUW8e479e441d86408b73e820b38379'
+  GCS_BUCKET_NAME: 'sponser'
   

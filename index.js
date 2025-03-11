@@ -1,9 +1,12 @@
 const puppeteer = require('puppeteer-core');
+// const puppeteer = require('puppeteer');
 const chromium = require('@sparticuz/chromium');
 const fs = require('fs').promises;
 const TelegramBot = require('node-telegram-bot-api');
 require('dotenv').config();
 const express = require('express');
+const { Storage } = require('@google-cloud/storage');
+
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -12,32 +15,53 @@ const port = process.env.PORT || 8080;
 // Telegram Bot Token and Chat ID
 const CHAT_ID = '-4726759675';
 const bot = new TelegramBot(process.env.BOT_TOKEN);
-const browserlessToken = process.env.BROWSERLESS_TOKEN;
 
-
-const STORAGE_FILE = 'lastPost.json';
+// Google Cloud Storage setup
+const storage = new Storage();
+const bucketName = process.env.GCS_BUCKET_NAME; // Your GCS bucket name
+const fileName = 'lastPost.json';
 
 async function saveLastPost(post) {
-    await fs.writeFile(STORAGE_FILE, JSON.stringify(post));
+    const bucket = storage.bucket(bucketName);
+    const file = bucket.file(fileName);
+    await file.save(JSON.stringify(post), {
+        metadata: {
+            contentType: 'application/json',
+        },
+    });
 }
 
 async function getLastPost() {
     try {
-        const data = await fs.readFile(STORAGE_FILE, 'utf8');
-        return JSON.parse(data);
+        const bucket = storage.bucket(bucketName);
+        const file = bucket.file(fileName);
+        const [exists] = await file.exists();
+        if (!exists) {
+            return null;
+        }
+        const [buffer] = await file.download();
+        return JSON.parse(buffer.toString());
     } catch (error) {
-        return null; // Return null if file doesn't exist or can't be read
+        console.error('Error getting last post from GCS:', error);
+        return null;
     }
 }
 
+// const STORAGE_FILE = 'lastPost.json';
 
-async function launchBrowser() {
-    const browser = await puppeteer.connect({
-        browserWSEndpoint: `wss://chrome.browserless.io?token=${browserlessToken}`, // Replace with your Browserless token
-    });
-    
-    return browser;
-}
+// async function saveLastPost(post) {
+//     await fs.writeFile(STORAGE_FILE, JSON.stringify(post));
+// }
+
+// async function getLastPost() {
+//     try {
+//         const data = await fs.readFile(STORAGE_FILE, 'utf8');
+//         return JSON.parse(data);
+//     } catch (error) {
+//         return null; // Return null if file doesn't exist or can't be read
+//     }
+// }
+
 
 
 async function checkForNewPosts() {
@@ -45,15 +69,15 @@ async function checkForNewPosts() {
     // const browser = await puppeteer.launch({ headless: false });
 
     try {
-        // const browser = await puppeteer.launch({
-        //     args: chromium.args,
-        //     defaultViewport: chromium.defaultViewport,
-        //     executablePath: await chromium.executablePath(),
-        //     headless: true,
-        //     ignoreHTTPSErrors: true,
-        // });
+        const browser = await puppeteer.launch({
+            args: chromium.args,
+            defaultViewport: chromium.defaultViewport,
+            executablePath: await chromium.executablePath(),
+            headless: true,
+            ignoreHTTPSErrors: true,
+        });
 
-        const browser = await launchBrowser(); // Launch browser using Browserless
+
         const page = await browser.newPage();
 
 
